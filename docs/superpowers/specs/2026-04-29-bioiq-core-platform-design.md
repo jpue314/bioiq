@@ -315,24 +315,74 @@ See `issues.md` at project root for the issue to branch to test to PR workflow u
 
 ---
 
-## OWASP Top 10 (2025) Compliance
+## OWASP Top 10 Compliance (All Published Versions)
 
-All BioIQ code must be designed and reviewed against the OWASP Top 10 2025 list. This applies to both Django backend and Next.js/React Native frontend.
+BioIQ is designed and reviewed against every published OWASP Top 10 list: 2017, 2021, and 2025. Controls that appear across multiple versions receive the strongest treatment. This applies to both Django backend and Next.js/React Native frontend.
+
+OWASP compliance is verified at code review (PR checklist) and in periodic automated security scans. Each sub-project spec will include OWASP notes specific to its features.
+
+---
+
+### OWASP Top 10 — 2017
 
 | # | Risk | BioIQ Control |
 |---|------|---------------|
-| A01 | Broken Access Control | JWT auth on every endpoint; per-user data scoping in every query; ProviderAccess consent model; RBAC enforced in Django views |
-| A02 | Cryptographic Failures | TLS 1.2+ in transit; AES-256 at rest (RDS + S3); field-level encryption for PHI; no secrets in source code (AWS Secrets Manager) |
-| A03 | Injection | Django ORM exclusively (no raw SQL); DRF serializer validation on all inputs; parameterized queries only |
-| A04 | Insecure Design | HIPAA-by-design data model; threat modeling before each sub-project; ProviderAccess explicit consent; audit logging built in, not bolted on |
-| A05 | Security Misconfiguration | Django DEBUG=False in all non-local envs; security headers (HSTS, CSP, X-Frame-Options) enforced; no default credentials; automated config drift detection |
-| A06 | Vulnerable and Outdated Components | Dependabot enabled on GitHub; pip-audit and npm audit in CI pipeline; weekly automated dependency scans |
-| A07 | Identification and Authentication Failures | bcrypt password hashing; JWT short expiry (15 min); refresh token rotation; account lockout after failed attempts; MFA planned for future |
-| A08 | Software and Data Integrity Failures | GitHub branch protection; signed commits enforced in CI; no unverified third-party packages without review |
-| A09 | Security Logging and Monitoring Failures | AuditLog table for all PHI access; Django logging to CloudWatch; alerting on anomalous access patterns; log retention per HIPAA requirements |
-| A10 | Server-Side Request Forgery (SSRF) | Allowlist for outbound HTTP calls (device OAuth endpoints only); no user-supplied URLs passed to backend HTTP clients |
+| A1:2017 | Injection | Django ORM exclusively; no raw SQL; DRF serializer validation on all inputs; parameterized queries only |
+| A2:2017 | Broken Authentication | bcrypt hashing; JWT short expiry (15 min); refresh token rotation; account lockout after failed attempts |
+| A3:2017 | Sensitive Data Exposure | TLS 1.2+ in transit; AES-256 at rest (RDS + S3); field-level PHI encryption; no PHI in logs |
+| A4:2017 | XML External Entities (XXE) | No XML parsing in the stack; all APIs use JSON only; XXE vector eliminated by design |
+| A5:2017 | Broken Access Control | Per-user data scoping on every query; JWT required on all protected endpoints; ProviderAccess explicit consent model |
+| A6:2017 | Security Misconfiguration | DEBUG=False in all non-local envs; security headers enforced (HSTS, CSP, X-Frame-Options); no default credentials; config drift detection |
+| A7:2017 | Cross-Site Scripting (XSS) | React/Next.js escapes output by default; Content-Security-Policy header; no dangerouslySetInnerHTML; DRF output serialized safely |
+| A8:2017 | Insecure Deserialization | No pickle or unsafe deserialization; JSON only; DRF serializers validate all incoming data with explicit type checking |
+| A9:2017 | Using Components with Known Vulnerabilities | Dependabot on GitHub; pip-audit and npm audit in CI; weekly automated scans; no unpinned dependencies in prod |
+| A10:2017 | Insufficient Logging & Monitoring | AuditLog table for all PHI access; Django logging to CloudWatch; alerting on anomalous access patterns; HIPAA-compliant log retention |
 
-OWASP compliance is verified at code review (PR checklist) and in periodic security scans. Each sub-project spec will include OWASP notes specific to its features.
+---
+
+### OWASP Top 10 — 2021
+
+| # | Risk | Status vs 2017 | BioIQ Control |
+|---|------|----------------|---------------|
+| A01:2021 | Broken Access Control | Moved up from #5 | RBAC enforced in Django views; per-user queryset scoping; ProviderAccess revocation; account deletion cascade |
+| A02:2021 | Cryptographic Failures | Renamed from Sensitive Data Exposure | TLS 1.2+; AES-256 at rest; field-level encryption (django-encrypted-fields); AWS Secrets Manager for credentials; no secrets in source |
+| A03:2021 | Injection | Now includes XSS | Django ORM; DRF serializer validation; React auto-escaping; CSP header; no raw queries or eval() |
+| A04:2021 | Insecure Design | New in 2021 | HIPAA-by-design data model; threat modeling before each sub-project; privacy-by-default; audit logging built in from day one |
+| A05:2021 | Security Misconfiguration | Expanded | DEBUG=False; security headers; no default credentials; automated config checks in CI; environment parity (dev=prod) |
+| A06:2021 | Vulnerable and Outdated Components | Renamed from A9:2017 | Dependabot; pip-audit + npm audit in CI; pinned dependencies; weekly scans |
+| A07:2021 | Identification and Authentication Failures | Renamed from A2:2017 | bcrypt; JWT rotation; lockout policy; Sign in with Apple/Google; MFA planned |
+| A08:2021 | Software and Data Integrity Failures | Expanded from A8:2017 | GitHub branch protection; signed commits in CI; verified third-party packages only; no CI/CD bypass |
+| A09:2021 | Security Logging and Monitoring Failures | Renamed from A10:2017 | AuditLog for all PHI; CloudWatch alerts; anomaly detection; 6-year HIPAA log retention |
+| A10:2021 | Server-Side Request Forgery (SSRF) | New in 2021 | Allowlist for all outbound HTTP (device OAuth endpoints only); no user-supplied URLs to backend HTTP clients |
+
+---
+
+### OWASP Top 10 — 2025
+
+| # | Risk | Status vs 2021 | BioIQ Control |
+|---|------|----------------|---------------|
+| A01:2025 | Broken Access Control | Maintained from 2021 | All 2021 controls apply; additionally: automated access control tests in CI suite |
+| A02:2025 | Cryptographic Failures | Maintained from 2021 | All 2021 controls apply; TLS 1.3 preferred; key rotation policy via AWS KMS |
+| A03:2025 | Injection | Maintained from 2021 | All 2021 controls apply; AI prompt injection defense: user input sanitized before Claude API calls |
+| A04:2025 | Insecure Design | Maintained from 2021 | All 2021 controls apply; OWASP review checklist on every PR |
+| A05:2025 | Security Misconfiguration | Maintained from 2021 | All 2021 controls apply; infrastructure-as-code (no manual console changes in prod) |
+| A06:2025 | Vulnerable and Outdated Components | Maintained from 2021 | All 2021 controls apply; automated PR creation by Dependabot within 48hrs of CVE |
+| A07:2025 | Identification and Authentication Failures | Maintained from 2021 | All 2021 controls apply; passkeys/Face ID in roadmap |
+| A08:2025 | Software and Data Integrity Failures | Maintained from 2021 | All 2021 controls apply; SBOM (Software Bill of Materials) generated in CI |
+| A09:2025 | Security Logging and Monitoring Failures | Maintained from 2021 | All 2021 controls apply; real-time alerting on failed auth spikes and unusual PHI access |
+| A10:2025 | Server-Side Request Forgery (SSRF) | Maintained from 2021 | All 2021 controls apply; outbound request auditing in CloudWatch |
+
+---
+
+### Cross-Version Coverage Summary
+
+Controls that appeared in 2017, were reinforced in 2021, and maintained in 2025 receive the highest implementation priority:
+- Injection defense (A1:2017 -> A03:2021 -> A03:2025)
+- Broken Access Control (A5:2017 -> A01:2021 -> A01:2025)
+- Cryptographic Failures (A3:2017 -> A02:2021 -> A02:2025)
+- Logging & Monitoring (A10:2017 -> A09:2021 -> A09:2025)
+
+New risks introduced in 2021 and 2025 (Insecure Design, SSRF, Software Integrity) are addressed from the start rather than retrofitted.
 
 ---
 
@@ -463,3 +513,4 @@ Environment variables are never committed to source control. `.env.example` docu
 - AWS BAA active
 - CloudWatch monitoring + alerting
 - Automated daily RDS snapshots (30-day retention)
+

@@ -311,3 +311,155 @@ AWS BAA: Signed before any real PHI is stored (free, checkbox in AWS console).
 ## Project Workflow
 
 See `issues.md` at project root for the issue to branch to test to PR workflow used throughout development.
+
+
+---
+
+## OWASP Top 10 (2025) Compliance
+
+All BioIQ code must be designed and reviewed against the OWASP Top 10 2025 list. This applies to both Django backend and Next.js/React Native frontend.
+
+| # | Risk | BioIQ Control |
+|---|------|---------------|
+| A01 | Broken Access Control | JWT auth on every endpoint; per-user data scoping in every query; ProviderAccess consent model; RBAC enforced in Django views |
+| A02 | Cryptographic Failures | TLS 1.2+ in transit; AES-256 at rest (RDS + S3); field-level encryption for PHI; no secrets in source code (AWS Secrets Manager) |
+| A03 | Injection | Django ORM exclusively (no raw SQL); DRF serializer validation on all inputs; parameterized queries only |
+| A04 | Insecure Design | HIPAA-by-design data model; threat modeling before each sub-project; ProviderAccess explicit consent; audit logging built in, not bolted on |
+| A05 | Security Misconfiguration | Django DEBUG=False in all non-local envs; security headers (HSTS, CSP, X-Frame-Options) enforced; no default credentials; automated config drift detection |
+| A06 | Vulnerable and Outdated Components | Dependabot enabled on GitHub; pip-audit and npm audit in CI pipeline; weekly automated dependency scans |
+| A07 | Identification and Authentication Failures | bcrypt password hashing; JWT short expiry (15 min); refresh token rotation; account lockout after failed attempts; MFA planned for future |
+| A08 | Software and Data Integrity Failures | GitHub branch protection; signed commits enforced in CI; no unverified third-party packages without review |
+| A09 | Security Logging and Monitoring Failures | AuditLog table for all PHI access; Django logging to CloudWatch; alerting on anomalous access patterns; log retention per HIPAA requirements |
+| A10 | Server-Side Request Forgery (SSRF) | Allowlist for outbound HTTP calls (device OAuth endpoints only); no user-supplied URLs passed to backend HTTP clients |
+
+OWASP compliance is verified at code review (PR checklist) and in periodic security scans. Each sub-project spec will include OWASP notes specific to its features.
+
+---
+
+## CI/CD Pipeline
+
+**Platform:** GitHub Actions
+
+### Pipeline Stages (runs on every PR and push to main)
+
+```
+PR opened / push to branch
+        |
+        v
++------------------+
+|   LINT & FORMAT  |
+|  Python: ruff    |
+|  JS: ESLint      |
+|  CSS: Stylelint  |
++--------+---------+
+         |
+         v
++------------------+
+|   TYPE CHECK     |
+|  Python: mypy    |
+|  JS: tsc --noEmit|
++--------+---------+
+         |
+         v
++------------------+
+|   SECURITY SCAN  |
+|  Python: bandit  |
+|  JS: npm audit   |
+|  Deps: pip-audit |
++--------+---------+
+         |
+         v
++------------------+
+|   TEST SUITE     |
+|  Django: pytest  |
+|  Next.js: Jest   |
+|  Coverage >= 80% |
++--------+---------+
+         |
+         v
++------------------+
+|   BUILD CHECK    |
+|  next build      |
+|  Django check    |
++--------+---------+
+         |
+    Pass? Yes
+         |
+         v
+  PR ready to merge
+```
+
+### GitHub Branch Protection (main + staging)
+- All pipeline stages must pass before merge
+- At least 1 approving review required
+- No direct pushes to main or staging
+- Signed commits required
+
+### Deployment Triggers
+| Branch | Deploys To | Auto-deploy |
+|--------|------------|-------------|
+| feature/* | Local only | No |
+| staging | Test environment | Yes, on merge |
+| main | Production | Yes, on merge (with manual approval gate) |
+
+### Code Quality Tools
+
+| Tool | Language | Purpose |
+|------|----------|---------|
+| ruff | Python | Linting + formatting (replaces flake8, black, isort) |
+| mypy | Python | Static type checking |
+| bandit | Python | Security vulnerability scanning |
+| pip-audit | Python | Dependency vulnerability scanning |
+| pytest | Python | Test runner |
+| pytest-cov | Python | Coverage reporting |
+| ESLint | JS/TS | Linting |
+| Prettier | JS/TS | Formatting |
+| TypeScript | JS/TS | Type checking |
+| Jest | JS/TS | Unit + integration tests |
+| npm audit | JS/TS | Dependency vulnerability scanning |
+| Dependabot | Both | Automated dependency update PRs |
+
+---
+
+## Environments
+
+**Philosophy: develop like we are in prod.** Staging mirrors production exactly. No dev-only shortcuts in code. Feature flags are off by default. If it would not fly in prod, it does not land in staging.
+
+### Three-Environment Model
+
+| Environment | Purpose | Infrastructure | Data |
+|-------------|---------|----------------|------|
+| **Local (dev)** | Individual development | Docker Compose (Django + Postgres + Redis) | Synthetic seed data only. No real PHI ever in local. |
+| **Staging (test)** | Integration testing, QA, pre-release validation | AWS (mirrors prod, smaller instance sizes) | Anonymized/synthetic data. HIPAA controls active. |
+| **Production (prod)** | Live users | AWS (full spec) | Real user PHI. Full HIPAA controls. AWS BAA active. |
+
+### Environment Configuration
+
+Each environment uses its own:
+- AWS account or isolated VPC
+- RDS instance (no shared databases between envs)
+- S3 bucket
+- Django SECRET_KEY and database credentials (AWS Secrets Manager)
+- Anthropic API key (separate keys per env for cost tracking)
+- Vercel deployment (preview for staging, production for prod)
+
+Environment variables are never committed to source control. `.env.example` documents required variables with placeholder values.
+
+### Local Development Setup
+- Docker Compose runs Django + PostgreSQL + Redis locally
+- `.env.local` file (gitignored) holds local credentials
+- `make seed` command populates synthetic health data for development
+- Hot reload enabled for both Django and Next.js
+
+### Staging Environment
+- Deployed automatically on merge to `staging` branch
+- Mirrors production infrastructure at reduced scale (t2.micro vs t3.small)
+- Used for QA, integration testing with real device APIs (sandbox modes where available)
+- All OWASP and HIPAA controls active -- not a relaxed environment
+
+### Production Environment
+- Deployed on merge to `main` with a manual approval gate in GitHub Actions
+- Full AWS infrastructure per spec
+- AWS BAA active
+- CloudWatch monitoring + alerting
+- Automated daily RDS snapshots (30-day retention)

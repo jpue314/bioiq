@@ -13,7 +13,7 @@ def test_user_created_with_email_as_identifier():
         last_name="Doe",
     )
     assert user.email == "test@example.com"
-    assert user.username is None
+    assert user.USERNAME_FIELD == "email"
     assert user.check_password("SecurePass123!")
     assert not user.is_verified
 
